@@ -1,0 +1,130 @@
+
+<style>
+  .todo-wrap { max-width: 480px; margin: 1.5rem auto; font-family: var(--font-sans); }
+  .todo-header { font-size: 22px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 1.25rem; }
+  .todo-input-row { display: flex; gap: 8px; margin-bottom: 1.25rem; }
+  .todo-input-row input { flex: 1; }
+  .todo-input-row button { white-space: nowrap; }
+  .todo-filters { display: flex; gap: 6px; margin-bottom: 1rem; }
+  .filter-btn { font-size: 13px; padding: 4px 12px; border-radius: 99px; border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); cursor: pointer; transition: background 0.15s; }
+  .filter-btn.active { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: var(--color-border-primary); }
+  .todo-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .todo-item { display: flex; align-items: center; gap: 10px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 12px; transition: opacity 0.2s; }
+  .todo-item.done { opacity: 0.5; }
+  .todo-item.done .todo-text { text-decoration: line-through; color: var(--color-text-tertiary); }
+  .todo-check { width: 18px; height: 18px; border-radius: 50%; border: 0.5px solid var(--color-border-secondary); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, border-color 0.15s; }
+  .todo-check.checked { background: #1D9E75; border-color: #1D9E75; }
+  .todo-check svg { display: none; }
+  .todo-check.checked svg { display: block; }
+  .todo-text { flex: 1; font-size: 15px; color: var(--color-text-primary); outline: none; background: transparent; border: none; cursor: text; font-family: var(--font-sans); caret-color: var(--color-text-primary); }
+  .todo-delete { opacity: 0; background: transparent; border: none; cursor: pointer; color: var(--color-text-tertiary); font-size: 16px; padding: 2px 4px; border-radius: 4px; transition: opacity 0.15s, color 0.15s; line-height: 1; }
+  .todo-item:hover .todo-delete { opacity: 1; }
+  .todo-delete:hover { color: #E24B4A; }
+  .todo-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; font-size: 13px; color: var(--color-text-secondary); }
+  .clear-btn { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--color-text-tertiary); padding: 0; }
+  .clear-btn:hover { color: #E24B4A; }
+  .empty-state { text-align: center; padding: 2rem 0; color: var(--color-text-tertiary); font-size: 14px; }
+</style>
+
+<div class="todo-wrap">
+  <p class="todo-header">My to-do list</p>
+
+  <div class="todo-input-row">
+    <input type="text" id="newTask" placeholder="Add a new task..." />
+    <button id="addBtn" onclick="addTask()">Add ↗</button>
+  </div>
+
+  <div class="todo-filters">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('active', this)">Active</button>
+    <button class="filter-btn" onclick="setFilter('done', this)">Done</button>
+  </div>
+
+  <ul class="todo-list" id="todoList"></ul>
+
+  <div class="todo-footer">
+    <span id="taskCount"></span>
+    <button class="clear-btn" onclick="clearDone()">Clear completed</button>
+  </div>
+</div>
+
+<script>
+  let tasks = [
+    { id: 1, text: 'Buy groceries', done: false },
+    { id: 2, text: 'Read a book', done: false },
+    { id: 3, text: 'Go for a walk', done: true }
+  ];
+  let filter = 'all';
+  let nextId = 4;
+
+  function render() {
+    const list = document.getElementById('todoList');
+    const filtered = tasks.filter(t =>
+      filter === 'all' ? true : filter === 'done' ? t.done : !t.done
+    );
+    if (filtered.length === 0) {
+      list.innerHTML = '<li class="empty-state">Nothing here yet.</li>';
+    } else {
+      list.innerHTML = filtered.map(t => `
+        <li class="todo-item ${t.done ? 'done' : ''}" id="item-${t.id}">
+          <div class="todo-check ${t.done ? 'checked' : ''}" onclick="toggle(${t.id})">
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+              <path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="todo-text" contenteditable="true"
+            onblur="editTask(${t.id}, this.textContent.trim())"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
+          >${t.text}</span>
+          <button class="todo-delete" onclick="removeTask(${t.id})" title="Delete">&#x2715;</button>
+        </li>
+      `).join('');
+    }
+    const active = tasks.filter(t => !t.done).length;
+    document.getElementById('taskCount').textContent =
+      active === 1 ? '1 task left' : `${active} tasks left`;
+  }
+
+  function addTask() {
+    const input = document.getElementById('newTask');
+    const text = input.value.trim();
+    if (!text) return;
+    tasks.unshift({ id: nextId++, text, done: false });
+    input.value = '';
+    render();
+  }
+
+  function toggle(id) {
+    const t = tasks.find(t => t.id === id);
+    if (t) t.done = !t.done;
+    render();
+  }
+
+  function removeTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    render();
+  }
+
+  function editTask(id, newText) {
+    const t = tasks.find(t => t.id === id);
+    if (t && newText) t.text = newText;
+  }
+
+  function setFilter(f, btn) {
+    filter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  }
+
+  function clearDone() {
+    tasks = tasks.filter(t => !t.done);
+    render();
+  }
+
+  document.getElementById('newTask').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addTask();
+  });
+
+  render();
+</script>
